@@ -1,0 +1,302 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1326.ve643e00e9220">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2133.ve46a_6113dfc3"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2133.ve46a_6113dfc3">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>10</daysToKeep>
+        <numToKeep>7</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <org.jenkinsci.plugins.gogs.GogsProjectProperty plugin="gogs-webhook@1.0.15">
+      <gogsSecret>{AQAAABAAAAAQJ63EyJj7RPg2QUT1pfx/BkD1kiUnMrTNvtEb5dPq9p4=}</gogsSecret>
+      <gogsUsePayload>false</gogsUsePayload>
+      <gogsBranchFilter></gogsBranchFilter>
+    </org.jenkinsci.plugins.gogs.GogsProjectProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>version</name>
+          <defaultValue>1.0.0</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Project_Code</name>
+          <defaultValue>Cloud</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Git_Branch</name>
+          <defaultValue>dev</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>to_recp</name>
+          <defaultValue>jayakrishna.n@amplelogic.com</defaultValue>
+          <trim>false</trim>
+        </hudson.model.TextParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>cc_recp</name>
+          <defaultValue>jayakrishna.n@amplelogic.com</defaultValue>
+          <trim>false</trim>
+        </hudson.model.TextParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>Extra_Project</name>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers/>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3673.v5b_dd74276262">
+    <script>pipeline {
+    agent any
+
+    environment {
+        PROJECT_BUILDCOMMAND=&apos;ngx-lms-ext&apos;
+
+    }
+
+    stages {
+        
+        stage(&apos;Permissions&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                sudo chown -R consultant:consultant /var/lib/jenkins/workspace/${JOB_NAME}
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&quot;Clone Git Repository&quot;) {
+            steps {
+         git(
+            url: &quot;http://git.corp.amplelogic.com/${Project_Code}/ngx-al-libs.git&quot;,
+            branch: &quot;${Git_Branch}&quot;,
+            changelog: true,
+            credentialsId: &quot;6a4d24c4-7576-41aa-af53-dcf2fb4c6163&quot;, // Replace with the actual ID of your credentials
+            poll: false
+        )
+    }
+}
+
+        stage(&apos;Checking and Creating the Directories&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                if [ -d &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/&quot; ]; then
+                   echo &quot;The directory is already there&quot;
+                else
+                   mkdir -p &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/&quot; 
+                fi
+                
+                if [ -d &quot;/opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/${version}/&quot; ]; then
+                   echo &quot;The directory is already there&quot;
+                else
+                   mkdir -p &quot;/opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/BuildFiles/Client&quot; &quot;/opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/SourceCode/&quot; &quot;/opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/NpmPackages/&quot; &quot;/opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/EXE/&quot; &quot;/opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/coderepos/&quot;  
+                fi
+                &quot;&quot;&quot;
+            }
+        }l       
+
+        stage(&apos;Npm Install&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                
+                sudo npm install -f 
+
+                npm install ngx-al-boot@$version
+
+                npm install ngx-al-controllers@$version
+
+                npm install ngx-al-controls@$version
+
+                npm install ngx-al-core@$version
+
+                npm install ngx-al-ext@$version
+                
+                npm install ngx-al-form-report-runtime@$version
+
+                npm install ngx-al-form-report-runtime@$version
+
+                npm install ngx-al-graphical-reports-designer@$version  
+                
+                npm install ngx-al-graph-reports-runtime@$version
+                
+                npm install ngx-al-infra@$version
+                
+                if [ -f &quot;/var/lib/jenkins/workspace/${JOB_NAME}/node_modules/@angular/compiler-cli/ngcc/__ngcc_lock_file__&quot; ]; then
+                       rm /var/lib/jenkins/workspace/${JOB_NAME}/node_modules/@angular/compiler-cli/ngcc/__ngcc_lock_file__
+                else
+                       echo &quot;The file __ngcc_lock_file__ does not exist.&quot;
+                fi
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Build project command&apos;) {
+           when {
+                expression {
+                    // Use the build parameter to conditionally skip the stage
+                    def extraProject = params.Extra_Project
+                    println &quot;Extra_Project value: ${extraProject}&quot;
+                    return extraProject == false
+                    return params.Extra_Project == false
+                }
+            }
+            steps {
+                script {
+                    try {
+                        // Run the global build command
+                        sh &quot;sudo ng build ${PROJECT_BUILDCOMMAND}&quot;
+                    } catch (Exception e) {
+                        currentBuild.result = &apos;FAILURE&apos;
+                        error(&quot;Build failed for ${PROJECT_BUILDCOMMAND}: ${e.getMessage()}&quot;)
+                    }
+                }
+            }
+            post {
+                failure {
+                    // Execute your shell script for ngx-lms-ext failure
+                    script {
+                        subject = &quot;${Project_Code} client side build is failed&quot;
+                        body = &quot;client side build has failed please check once&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=${cc_recp} --to_recipients=${to_recp} --subject=&quot;${subject}&quot; --body=&quot;${body}&quot;&apos;
+                    }
+                }
+            }
+        }
+        
+        stage(&apos;Build ngx-al-client&apos;) {
+            steps {
+                script {
+                    def buildCommand = &apos;ngx-al-client&apos; // Hard-coded value
+                    try {
+                        // Run the hard-coded build command
+                        sh &quot;sudo ng build ${buildCommand}&quot;
+                    } catch (Exception e) {
+                        currentBuild.result = &apos;FAILURE&apos;
+                        error(&quot;Build failed for ${buildCommand}: ${e.getMessage()}&quot;)
+                    }
+                }
+            }
+            post {
+                failure {
+                    // Execute your shell script for ngx-al-client failure
+                    script {
+                        subject = &quot;${Project_Code} client side build is failed&quot;
+                        body = &quot;client side build has failed please check once&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=$cc_recp --to_recipients=$to_recp --subject=&quot;$subject&quot; --body=&quot;$body&quot;&apos;
+                    }
+                }
+            }
+        }
+        
+        stage(&apos;Send the Build files to ${Git_Branch} directory&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                sudo cp -r /var/lib/jenkins/workspace/${JOB_NAME}/dist/ngx-al-client/* /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/
+                
+                sudo cp /var/lib/jenkins/workspace/Ample-Client-Build/find_and_replace.bat /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Packaging and Upload the Source code&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                cd /var/lib/jenkins/workspace/${JOB_NAME}/dist
+
+                curl -v -u aluser:Welcome2 -X DELETE ${NEXSUS_URL}${Project_Code}/-/${Project_Code}-${version}.tgz
+
+                cd /var/lib/jenkins/workspace/$JOB_NAME/dist/${Project_Code} &amp;&amp; npm version ${version} --allow-same-version
+
+                sudo npm pack ${Project_Code}
+
+                expect -c &apos;spawn npm login --registry=${NEXSUS_URL}; expect &quot;Username:&quot;; send &quot;aluser\n&quot;; expect &quot;Password:&quot;; send &quot;Welcome2\n&quot;; expect &quot;Email:&quot;; send &quot;jai@amplelogic.com\n&quot;; interact&apos;
+                
+                npm --registry=${NEXSUS_URL} publish ${Project_Code}-${version}.tgz
+                
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Releases&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                cd /var/lib/jenkins/workspace/${JOB_NAME}/dist/
+                
+                cp -r /var/lib/jenkins/workspace/${JOB_NAME}/dist/*.tgz /opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/NpmPackages/
+                
+                cd /var/lib/jenkins/workspace/${JOB_NAME}/
+                
+                tar cvzf /opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/SourceCode/Sourcecode.tar.gz projects/ angular.json tsconfig.json package.json buildOrder.md .editorconfig .npmrc
+                
+                cd /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/
+                
+                tar cvzf /opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/BuildFiles/Buildfiles.tar.gz client/
+                
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Upload the Release to git&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                cd /opt/Atwork_Projects/${Project_Code}/Releases/
+                
+                #git init
+                
+                if ! git remote get-url origin &gt;/dev/null 2&gt;&amp;1; then
+                # &apos;origin&apos; remote doesn&apos;t exist, so add it
+                git remote add origin http://git.corp.amplelogic.com/${Project_Code}/Releases.git
+                else
+                echo &quot;Remote &apos;origin&apos; already exists.&quot;
+                fi
+
+                if git rev-parse --verify &quot;${version}&quot; &gt;/dev/null 2&gt;&amp;1; then
+                  echo &quot;Branch ${version} already exists. Skipping branch creation.&quot;
+                else
+                  echo &quot;Creating branch ${version}&quot;
+                  sudo git checkout -b &quot;${version}&quot;
+                fi
+                
+                #sudo git checkout -b ${version}
+                
+                sudo git add .
+                
+                sudo git commit -m &quot;${version}-releases&quot;
+                
+                sudo git push origin ${version} -f
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Removing Archives&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                rm -rf /opt/Atwork_Projects/${Project_Code}/Releases/Client_Releases/NpmPackages/*-${version}.tgz
+                &quot;&quot;&quot;
+            }
+        }
+        
+    }
+}
+</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

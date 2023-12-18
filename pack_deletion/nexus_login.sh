@@ -1,0 +1,1 @@
+expect -c 'spawn npm login --registry=http://192.168.1.208:30589/repository/Ample-Npm-Hosted/; expect "Username:"; send "admin\n"; expect "Password:"; send "Ample@0908\n"; expect "Email:"; send "jai@amplelogic.com\n"; interact'

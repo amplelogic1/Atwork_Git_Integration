@@ -1,0 +1,110 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1326.ve643e00e9220">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <org.jenkinsci.plugins.gogs.GogsProjectProperty plugin="gogs-webhook@1.0.15">
+      <gogsSecret>{AQAAABAAAAAQyXZQnsLtBhtNohd63mHZ/x2AApfdSbckKWxSWxFqTAg=}</gogsSecret>
+      <gogsUsePayload>false</gogsUsePayload>
+      <gogsBranchFilter></gogsBranchFilter>
+    </org.jenkinsci.plugins.gogs.GogsProjectProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>version</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Project_Code</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Git_Branch</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3673.v5b_dd74276262">
+    <script>pipeline {
+    agent any
+
+    stages {
+        
+
+        stage(&quot;Clone Git Repository&quot;) {
+            steps {
+        git(
+            url: &quot;http://git.corp.amplelogic.com/${Project_Code}/ServerApp.git&quot;,
+            branch: &quot;${Git_Branch}&quot;,
+            changelog: true,
+            credentialsId: &quot;6a4d24c4-7576-41aa-af53-dcf2fb4c6163&quot;, // Replace with the actual ID of your credentials
+            poll: false
+        )
+    }
+}
+
+        stage(&apos;Checking and Creating the Directories&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                if [ -d &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/&quot; ]; then
+                   echo &quot;The directory is already there&quot;
+                else
+                   mkdir -p &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/Plugins/&quot; 
+                fi
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;build&apos;) {
+            steps {
+                script {
+                    def publishCommand = &quot;sudo dotnet publish Ample.Web --output \&quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/\&quot;&quot;
+                    def buildCommand = &quot;sudo dotnet build Ample.Engine.Designer/&quot;
+                    
+                    // Execute dotnet publish
+                    def publishResult = sh(script: publishCommand, returnStatus: true)
+                    subject = &quot;${Project_Code} client side build is failed&quot;
+                    body = &quot;client side build has failed please check once&quot;
+                    if (publishResult != 0) {
+                        echo &quot;dotnet publish failed. Executing alternate script...&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=$cc_recp --to_recipients=$to_recp --subject=&quot;$subject&quot; --body=&quot;$body&quot;&apos; // Execute your alternate shell script
+                        error(&quot;dotnet publish failed&quot;) // Fail the stage
+                    } else {
+                        echo &quot;dotnet publish succeeded.&quot;
+                    }
+                    
+                    // Execute dotnet build
+                    def buildResult = sh(script: buildCommand, returnStatus: true)
+                    sh &quot;&quot;&quot;
+                    rm /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/appsettings.json /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/web.config
+                    #cp /var/lib/jenkins/workspace/${JOB_NAME}/Ample.Engine.Designer/bin/Debug/net6.0/Ample.Engine.Designer.dll /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/Plugins/
+                    cp /var/lib/jenkins/workspace/${JOB_NAME}/Ample.Engine.Designer/bin/Debug/netcoreapp3.1/Ample.Engine.Designer.dll /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/Plugins/
+                    &quot;&quot;&quot;
+                    if (buildResult != 0) {
+                        echo &quot;dotnet build failed. Executing alternate script...&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=$cc_recp --to_recipients=$to_recp --subject=&quot;$subject&quot; --body=&quot;$body&quot;&apos; // Execute your alternate shell script
+                        error(&quot;dotnet build failed&quot;) // Fail the stage
+                    } else {
+                        echo &quot;dotnet build succeeded.&quot;
+                    }
+                }
+            }
+        }
+        
+        stage(&apos;Sending Mails to The Teams&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                
+                &quot;&quot;&quot;
+            }
+        }
+        
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

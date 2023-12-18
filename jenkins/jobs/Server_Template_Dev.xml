@@ -1,0 +1,279 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1326.ve643e00e9220">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <org.jenkinsci.plugins.gogs.GogsProjectProperty plugin="gogs-webhook@1.0.15">
+      <gogsSecret>{AQAAABAAAAAQyXZQnsLtBhtNohd63mHZ/x2AApfdSbckKWxSWxFqTAg=}</gogsSecret>
+      <gogsUsePayload>false</gogsUsePayload>
+      <gogsBranchFilter></gogsBranchFilter>
+    </org.jenkinsci.plugins.gogs.GogsProjectProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>version</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Project_Code</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Git_Branch</name>
+          <defaultValue>qa</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Server_IP</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Admin_DB_Name</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SQL_SERVER_INSTANCE</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SQL_PASSWORD</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>ENVIRONMENT_CONFIG</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3673.v5b_dd74276262">
+    <script>pipeline {
+    agent any
+
+    stages {
+        
+        stage(&apos;Permissions&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                sudo chown -R consultant:consultant /var/lib/jenkins/workspace/${JOB_NAME}
+                &quot;&quot;&quot;
+            }
+        }        
+        
+        stage(&quot;Clone Git Repository&quot;) {
+            steps {ac
+        git(
+            url: &quot;http://git.corp.amplelogic.com/${Project_Code}/ServerApp.git&quot;,
+            branch: &quot;${Git_Branch}&quot;,
+            changelog: true,
+            credentialsId: &quot;6a4d24c4-7576-41aa-af53-dcf2fb4c6163&quot;, // Replace with the actual ID of your credentials
+            poll: false
+        )
+    }
+}
+
+        stage(&apos;Checking and Creating the Directories&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                if [ -d &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/&quot; ]; then
+                   echo &quot;The directory is already there&quot;
+                else
+                   mkdir -p &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/Plugins/&quot; 
+                fi
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;build&apos;) {
+            steps {
+                script {
+                    def publishCommand = &quot;sudo dotnet publish Ample.Web --output \&quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/\&quot;&quot;
+                    def buildCommand = &quot;sudo dotnet build Ample.Engine.Designer/&quot;
+                    
+                    // Execute dotnet publish
+                    def publishResult = sh(script: publishCommand, returnStatus: true)
+                    subject = &quot;${Project_Code} Server side build is failed&quot;
+                    body = &quot;Server side build has failed please check once&quot;
+                    if (publishResult != 0) {
+                        echo &quot;dotnet publish failed. Executing alternate script...&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=$cc_recp --to_recipients=$to_recp --subject=&quot;$subject&quot; --body=&quot;$body&quot;&apos; // Execute your alternate shell script
+                        error(&quot;dotnet publish failed&quot;) // Fail the stage
+                    } else {
+                        echo &quot;dotnet publish succeeded.&quot;
+                    }
+                    
+                    // Execute dotnet build
+                    def buildResult = sh(script: buildCommand, returnStatus: true)
+                    sh &quot;&quot;&quot;
+                    rm /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/appsettings.json /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/web.config
+                    #cp /var/lib/jenkins/workspace/${JOB_NAME}/Ample.Engine.Designer/bin/Debug/net6.0/Ample.Engine.Designer.dll /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/Plugins/
+                    cp /var/lib/jenkins/workspace/${JOB_NAME}/Ample.Engine.Designer/bin/Debug/netcoreapp3.1/Ample.Engine.Designer.dll /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/Plugins/
+                    cp /opt/Atwork_Project_Creation/jenkins/Dockerfile/ /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/server/
+                    &quot;&quot;&quot;
+                    if (buildResult != 0) {
+                        echo &quot;dotnet build failed. Executing alternate script...&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=$cc_recp --to_recipients=$to_recp --subject=&quot;$subject&quot; --body=&quot;$body&quot;&apos; // Execute your alternate shell script
+                        error(&quot;dotnet build failed&quot;) // Fail the stage
+                    } else {
+                        echo &quot;dotnet build succeeded.&quot;
+                    }
+                }
+            }
+        }
+        
+        stage(&apos;Getting The Site Values&apos;) {
+            steps {
+                script {
+                    // Capture the PowerShell command&apos;s output as a string
+                    DESIGN_SERVER_PATH = sh(script: &quot;&quot;&quot;
+                        ssh administrator@${Server_IP} &quot;powershell (Get-WebSite -Name &apos;${Project_Code}_Design_Server&apos;).PhysicalPath&quot;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Use sed to replace backslashes with forward slashes
+                    DESIGN_SERVER_SCP_PATH = sh(script: &quot;&quot;&quot;
+                        echo &apos;${DESIGN_SERVER_PATH}&apos; | sed &apos;s/\\\\/\\//g&apos;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Now you can use the obtained values in subsequent steps
+                    printf &quot;Design Server Path = %s\n&quot;, DESIGN_SERVER_PATH
+                    printf &quot;Design Server SCP Path = %s\n&quot;, DESIGN_SERVER_SCP_PATH
+
+                    Run_SERVER_PATH = sh(script: &quot;&quot;&quot;
+                        ssh administrator@${Server_IP} &quot;powershell (Get-WebSite -Name &apos;${Project_Code}_Run_Server&apos;).PhysicalPath&quot;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Use sed to replace backslashes with forward slashes
+                    Run_Server_SCP_PATH = sh(script: &quot;&quot;&quot;
+                        echo &apos;${Run_SERVER_PATH}&apos; | sed &apos;s/\\\\/\\//g&apos;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Now you can use the obtained values in subsequent steps
+                    printf &quot;Run Server Path = %s\n&quot;, Run_SERVER_PATH
+                    printf &quot;Run Server SCP Path = %s\n&quot;, Run_SERVER_SCP_PATH
+
+                    def command1 = &quot;&quot;&quot;ssh administrator@${SERVER_IP} &quot;powershell \\&quot;(Get-WebSite -Name &apos;${Project_Code}_Design_Server&apos;).bindings.Collection[0].bindingInformation.Split(&apos;:&apos;)[1]\\&quot;&quot; &quot;&quot;&quot;
+
+                    Design_Server_Port = sh(script: command1, returnStdout: true).trim()
+                    printf &quot;Design Server Port = %s\n&quot;, Design_Server_Port
+                    
+                    APPOOL_NAME = sh(script: &quot;&quot;&quot;
+                        ssh administrator@${SERVER_IP} &quot;powershell \\&quot;(Get-WebSite -Name &apos;${Project_Code}_Design_Server&apos;).applicationPool\\&quot;&quot;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Replace backslashes with forward slashes in the application pool name using sed
+                    APPOOL_NAME = APPOOL_NAME.replaceAll(&apos;\\\\&apos;, &apos;/&apos;)
+                    
+
+                    // Set the environment variables
+                    env.DESIGN_Server_PATH = DESIGN_SERVER_PATH
+                    env.DESIGN_Server_SCP_PATH = DESIGN_SERVER_SCP_PATH
+                    env.Run_Server_PATH = Run_Server_PATH
+                    env.Run_Server_SCP_PATH = Run_SERVER_SCP_PATH
+                    env.Design_Server_Port = Design_Server_Port
+                    env.APPOOL_NAME = APPOOL_NAME
+                }
+            }
+        }
+        
+        stage(&apos;ssh validation&apos;) {
+            steps {
+                script {
+                    // Define the SSH server and username
+                    //def SSH_SERVER = &apos;192.168.1.9&apos;
+                    def SSH_USER = &apos;administrator&apos;
+
+                    // Attempt to SSH into the server with a timeout and disable password authentication
+                    def sshCommand = &quot;ssh -q -o ConnectTimeout=10 -o PasswordAuthentication=no $SSH_USER@${SSH_SERVER} exit&quot;
+                    def sshExitStatus = sh(script: sshCommand, returnStatus: true)
+                    def body = &quot;Hi team\n\nSSH connection is failed once the check the Openssh service is running or not in the ${SSH_SERVER}\n\nthanks and regards\n\nLowCode Platform&quot;
+                    def subject = &quot;${JOB_NAME} Build is Failed&quot;
+
+                    if (sshExitStatus == 0) {
+                        // SSH connection is successful, execute your shell script here
+                        echo &quot;SSH connection established.&quot;
+                        // Add your shell script execution command here
+                        // For example: sh &apos;./your_script.sh&apos;
+                    } else {
+                        // SSH connection failed or password authentication was requested
+                         sh &quot;&quot;&quot;
+                sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=${cc_recp} --to_recipients=${to_recp} --subject=&apos;${subject}&apos; --body=&apos;${body}&apos;
+                &quot;&quot;&quot;
+                        echo &quot;SSH connection failed or password authentication requested.&quot;
+                        // Mark the stage as failed, which will cause the Jenkins job to fail
+                        error &quot;SSH connection failed&quot;
+                       
+                    }
+                }
+            }
+        }        
+        
+        stage(&apos;DockerFile&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                sudo echo FROM ample.web AS base &gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                sudo echo WORKDIR /app &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                sudo echo EXPOSE 80 &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                sudo echo EXPOSE 443 &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                sudo echo #ENV ASPNETCORE_URLS=https://*:443;http://*:5000 &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+
+                sudo echo FROM ample.web &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                sudo echo COPY /Output plugins/ &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                sudo echo WORKDIR /App &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                sudo echo ENTRYPOINT [\&quot;dotnet\&quot;, \&quot;ample.web.dll\&quot;] &gt;&gt; //opt//Atwork_Projects//Ample//dev//3.1.9//server//Plugins//Dockerfile
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;files moving&apos;) {
+            steps {
+                script {
+                    sh &quot;&quot;&quot;
+                    subject=&quot;$JOB_NAME Build is started&quot;
+                    body=&quot;Hi Team
+
+                    Server side Build is started
+                    save your configurations on design time
+
+                    Thanks and regards,
+                    LowCode Platform&quot;
+
+                    sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail_Teams.sh --cc_recipients=$cc_recp --to_recipients=$to_recp --subject=&quot;\$subject&quot; --body=&quot;\$body&quot;
+
+                    sleep 30
+
+                    ssh administrator@${Server_IP} &quot;C:\\Windows\\system32\\inetsrv\\appcmd.exe stop apppool \&quot;${env.APPOOL_NAME}\&quot;&quot;
+
+                    scp -r //opt//Atwork_Projects//${Project_Code}//$Git_Branch//$version//server//* administrator@${Server_IP}:${env.DESIGN_Server_SCP_PATH}
+
+                    ssh administrator@${Server_IP} &quot;C:\\Windows\\system32\\inetsrv\\appcmd.exe start apppool \&quot;${env.APPOOL_NAME}\&quot;&quot;
+
+                    scp -r  //opt//Atwork_Projects//${Project_Code}//$Git_Branch//$version//server//* administrator@${Server_IP}:${env.Run_Server_SCP_PATH}
+
+                    ssh administrator@${Server_IP}  docker build -t ${Project_Code}.web &apos;${env.DESIGN_Server_SCP_PATH}&apos;
+
+                    export SQLCMDPASSWORD=$SQL_PASSWORD
+
+                    sqlcmd -S $SQL_SERVER_INSTANCE -U sa -d $Admin_DB_Name -Q &quot;update alt.EnvironmentConfig set IsPublished = 0 where Name = &apos;$ENVIRONMENT_CONFIG&apos;&quot;  
+
+                    endsubject=&quot;$JOB_NAME Build is Completed&quot;
+                    endbody=&quot;Hi Team
+
+                    Server side Build is Completed on  please check with DevLead for Release points :
+
+                    Thanks and regards,
+                    LowCode Platform&quot;
+
+                    sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail_Teams.sh --cc_recipients=$cc_recp --to_recipients=$to_recp --subject=&quot;\$endsubject&quot; --body=&quot;\$endbody&quot;
+                    &quot;&quot;&quot;
+                }
+            }
+        }
+        
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

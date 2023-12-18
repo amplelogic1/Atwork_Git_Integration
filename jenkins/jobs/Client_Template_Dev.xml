@@ -1,0 +1,368 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1326.ve643e00e9220">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2133.ve46a_6113dfc3"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2133.ve46a_6113dfc3">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>10</daysToKeep>
+        <numToKeep>7</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <org.jenkinsci.plugins.gogs.GogsProjectProperty plugin="gogs-webhook@1.0.15">
+      <gogsSecret>{AQAAABAAAAAQJ63EyJj7RPg2QUT1pfx/BkD1kiUnMrTNvtEb5dPq9p4=}</gogsSecret>
+      <gogsUsePayload>false</gogsUsePayload>
+      <gogsBranchFilter></gogsBranchFilter>
+    </org.jenkinsci.plugins.gogs.GogsProjectProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>version</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Project_Code</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Git_Branch</name>
+          <defaultValue>qa</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>to_recp</name>
+          <defaultValue>jayakrishna.n@amplelogic.com</defaultValue>
+          <trim>false</trim>
+        </hudson.model.TextParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>cc_recp</name>
+          <defaultValue>jayakrishna.n@amplelogic.com</defaultValue>
+          <trim>false</trim>
+        </hudson.model.TextParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>npm_version</name>
+          <defaultValue>3.1.9</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>Extra_Project</name>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Server_IP</name>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers/>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3673.v5b_dd74276262">
+    <script>pipeline {
+    agent any
+
+    environment {
+        PROJECT_BUILDCOMMAND=&apos;ngx-lms-ext&apos;
+    }
+    
+    stages {
+        
+        stage(&apos;Permissions&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                sudo chown -R consultant:consultant /var/lib/jenkins/workspace/${JOB_NAME}
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&quot;Clone Git Repository&quot;) {
+            steps {
+        git(
+            url: &quot;http://git.corp.amplelogic.com/${Project_Code}/ClientApp.git&quot;,
+            branch: &quot;${Git_Branch}&quot;,
+            changelog: true,
+            credentialsId: &quot;6a4d24c4-7576-41aa-af53-dcf2fb4c6163&quot;, // Replace with the actual ID of your credentials
+            poll: false
+        )
+    }
+}
+        
+        stage(&apos;Checking and Creating the Directories&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                if [ -d &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/&quot; ]; then
+                   echo &quot;The directory is already there&quot;
+                else
+                   mkdir -p &quot;/opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/&quot; 
+                fi
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Moving NodeModules&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                sudo cp -r /var/lib/jenkins/workspace/ALI0159_Client_Dev/node_modules/ /var/lib/jenkins/workspace/${JOB_NAME}
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Npm Install&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+
+                #npm install -f
+ 
+                sudo npm install ngx-al-boot@${npm_version}
+
+                sudo npm install ngx-al-controllers@${npm_version}
+
+                sudo npm install ngx-al-controls@${npm_version}
+
+                sudo npm install ngx-al-core@${npm_version}
+
+                sudo npm install ngx-al-ext@${npm_version}
+                
+                sudo npm install ngx-al-form-report-runtime@${npm_version}
+
+                sudo npm install ngx-al-form-report-runtime@${npm_version}
+
+                sudo npm install ngx-al-graphical-reports-designer@${npm_version}
+                
+                sudo npm install ngx-al-graph-reports-runtime@${npm_version}
+                
+                sudo npm install ngx-al-infra@${npm_version}
+                
+                if [ -f &quot;/var/lib/jenkins/workspace/${JOB_NAME}/node_modules/@angular/compiler-cli/ngcc/__ngcc_lock_file__&quot; ]; then
+                       sudo rm /var/lib/jenkins/workspace/${JOB_NAME}/node_modules/@angular/compiler-cli/ngcc/__ngcc_lock_file__
+                else
+                       echo &quot;The file __ngcc_lock_file__ does not exist.&quot;
+                fi
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Build project command&apos;) {
+           when {
+                expression {
+                    // Use the build parameter to conditionally skip the stage
+                    def extraProject = params.Extra_Project
+                    println &quot;Extra_Project value: ${extraProject}&quot;
+                    return extraProject == false
+                    return params.Extra_Project == false
+                }
+            }
+            steps {
+                script {
+                    try {
+                        // Run the global build command
+                        sh &quot;sudo ng build ${PROJECT_BUILDCOMMAND}&quot;
+                    } catch (Exception e) {
+                        currentBuild.result = &apos;FAILURE&apos;
+                        error(&quot;Build failed for ${PROJECT_BUILDCOMMAND}: ${e.getMessage()}&quot;)
+                    }
+                }
+            }
+            post {
+                failure {
+                    // Execute your shell script for ngx-lms-ext failure
+                    script {
+                        subject = &quot;${Project_Code} client side build is failed&quot;
+                        body = &quot;client side build has failed please check once&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=${cc_recp} --to_recipients=${to_recp} --subject=&quot;${subject}&quot; --body=&quot;${body}&quot;&apos;
+                    }
+                }
+            }
+        }
+        
+        stage(&apos;Build ngx-al-client&apos;) {
+            steps {
+                script {
+                    def buildCommand = &apos;ngx-al-client&apos; // Hard-coded value
+                    try {
+                        // Run the hard-coded build command
+                        sh &quot;sudo ng build ${buildCommand}&quot;
+                    } catch (Exception e) {
+                        currentBuild.result = &apos;FAILURE&apos;
+                        error(&quot;Build failed for ${buildCommand}: ${e.getMessage()}&quot;)
+                    }
+                }
+            }
+            post {
+                failure {
+                    // Execute your shell script for ngx-al-client failure
+                    script {
+                        subject = &quot;${Project_Code} client side build is failed&quot;
+                        body = &quot;client side build has failed please check once&quot;
+                        sh &apos;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=${cc_recp} --to_recipients=${to_recp} --subject=&quot;${subject}&quot; --body=&quot;${body}&apos;
+                    }
+                }
+            }
+        }
+        
+        stage(&apos;Send the Build files to ${Git_Branch} directory&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                sudo cp -r /var/lib/jenkins/workspace/${JOB_NAME}/dist/ngx-al-client/* /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/
+                
+                sudo cp /var/lib/jenkins/workspace/Ample-Client-Build/find_and_replace.bat /opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;Sending Mails to The Teams&apos;) {
+            steps {
+                sh &quot;&quot;&quot;
+                
+                &quot;&quot;&quot;
+            }
+        }
+        
+        stage(&apos;ssh validation&apos;) {
+            steps {
+                script {
+                    // Define the SSH server and username
+                    //def SSH_SERVER = &apos;192.168.1.9&apos;
+                    def SSH_USER = &apos;administrator&apos;
+
+                    // Attempt to SSH into the server with a timeout and disable password authentication
+                    def sshCommand = &quot;ssh -q -o ConnectTimeout=10 -o PasswordAuthentication=no $SSH_USER@${Server_IP} exit&quot;
+                    def sshExitStatus = sh(script: sshCommand, returnStatus: true)
+                    def body = &quot;Hi team\n\nSSH connection is failed once the check the Openssh service is running or not in the ${Server_IP}\n\nthanks and regards\n\nLowCode Platform&quot;
+                    def subject = &quot;${JOB_NAME} Build is Failed&quot;
+
+                    if (sshExitStatus == 0) {
+                        // SSH connection is successful, execute your shell script here
+                        echo &quot;SSH connection established.&quot;
+                        // Add your shell script execution command here
+                        // For example: sh &apos;./your_script.sh&apos;
+                    } else {
+                        // SSH connection failed or password authentication was requested
+                         sh &quot;&quot;&quot;
+                sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=${cc_recp} --to_recipients=${to_recp} --subject=&apos;${subject}&apos; --body=&apos;${body}&apos;
+                &quot;&quot;&quot;
+                        echo &quot;SSH connection failed or password authentication requested.&quot;
+                        // Mark the stage as failed, which will cause the Jenkins job to fail
+                        error &quot;SSH connection failed&quot;
+                       
+                    }
+                }
+            }
+        }
+    
+
+        stage(&apos;Getting The Site Values&apos;) {
+            steps {
+                script {
+                    // Capture the PowerShell command&apos;s output as a string
+                    DESIGN_CLIENT_PATH = sh(script: &quot;&quot;&quot;
+                        ssh administrator@${Server_IP} &quot;powershell (Get-WebSite -Name &apos;${Project_Code}_Design_Client&apos;).PhysicalPath&quot;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Use sed to replace backslashes with forward slashes
+                    DESIGN_CLIENT_SCP_PATH = sh(script: &quot;&quot;&quot;
+                        echo &apos;${DESIGN_CLIENT_PATH}&apos; | sed &apos;s/\\\\/\\//g&apos;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Now you can use the obtained values in subsequent steps
+                    printf &quot;Design Client Path = %s\n&quot;, DESIGN_CLIENT_PATH
+                    printf &quot;Design Client SCP Path = %s\n&quot;, DESIGN_CLIENT_SCP_PATH
+
+                    Run_CLIENT_PATH = sh(script: &quot;&quot;&quot;
+                        ssh administrator@${Server_IP} &quot;powershell (Get-WebSite -Name &apos;${Project_Code}_Run_Client&apos;).PhysicalPath&quot;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Use sed to replace backslashes with forward slashes
+                    Run_CLIENT_SCP_PATH = sh(script: &quot;&quot;&quot;
+                        echo &apos;${Run_CLIENT_PATH}&apos; | sed &apos;s/\\\\/\\//g&apos;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Now you can use the obtained values in subsequent steps
+                    printf &quot;Run Client Path = %s\n&quot;, Run_CLIENT_PATH
+                    printf &quot;Run Client SCP Path = %s\n&quot;, Run_CLIENT_SCP_PATH
+
+                    def command1 = &quot;&quot;&quot;ssh administrator@${Server_IP} &quot;powershell \\&quot;(Get-WebSite -Name &apos;${Project_Code}_Design_Server&apos;).bindings.Collection[0].bindingInformation.Split(&apos;:&apos;)[1]\\&quot;&quot; &quot;&quot;&quot;
+
+                    Design_Server_Port = sh(script: command1, returnStdout: true).trim()
+                    printf &quot;Design Server Port = %s\n&quot;, Design_Server_Port
+                    
+                    APPOOL_NAME = sh(script: &quot;&quot;&quot;
+                        ssh administrator@${Server_IP} &quot;powershell \\&quot;(Get-WebSite -Name &apos;${Project_Code}_Design_Server&apos;).applicationPool\\&quot;&quot;
+                    &quot;&quot;&quot;, returnStdout: true).trim()
+
+                    // Replace backslashes with forward slashes in the application pool name using sed
+                    APPOOL_NAME = APPOOL_NAME.replaceAll(&apos;\\\\&apos;, &apos;/&apos;)
+                    
+
+                    // Set the environment variables
+                    env.DESIGN_CLIENT_PATH = DESIGN_CLIENT_PATH
+                    env.DESIGN_CLIENT_SCP_PATH = DESIGN_CLIENT_SCP_PATH
+                    env.Run_CLIENT_PATH = Run_CLIENT_PATH
+                    env.Run_CLIENT_SCP_PATH = Run_CLIENT_SCP_PATH
+                    env.Design_Server_Port = Design_Server_Port
+                    env.APPOOL_NAME = APPOOL_NAME
+                }
+            }
+        }
+        
+        stage(&apos;files moving&apos;) {
+            steps {
+                script {
+                    def sourceFolder = &quot;//opt/Atwork_Projects/${Project_Code}/${Git_Branch}/${version}/client/&quot;
+
+                    def fileCount = 0
+                    def fileList = sh(script: &quot;ls ${sourceFolder}&quot;, returnStdout: true).trim().split(&apos;\n&apos;)
+
+                    fileList.each {
+                        if (it) {
+                            fileCount++
+                        }
+                    }
+
+                    if (fileCount &gt; 10) {
+                        // Execute the SSH commands only if files are present
+                        sh &quot;&quot;&quot;
+                            ssh administrator@${Server_IP} &quot;powershell -Command \&quot;Remove-Item &apos;${env.DESIGN_CLIENT_PATH}\\*&apos; -Force -Recurse\&quot;&quot;
+                            scp -r ${sourceFolder}* administrator@${Server_IP}:${env.DESIGN_CLIENT_SCP_PATH}
+                            ssh administrator@${Server_IP}  &apos;${env.DESIGN_CLIENT_PATH}\\find_and_replace.bat&apos; &apos;${env.DESIGN_CLIENT_PATH}\\main.*.js&apos; &apos;https://api.als001.corp.amplelogic.com&apos; &apos;http://${Server_IP}:${env.Design_Server_Port}&apos; &apos;${env.DESIGN_CLIENT_PATH}\\main.*.js&apos;
+                            ssh administrator@${Server_IP} &quot;powershell -Command \&quot;Remove-Item &apos;${env.Run_CLIENT_PATH}\\*&apos; -Force -Recurse\&quot;&quot;
+                            scp -r ${sourceFolder}* administrator@${Server_IP}:${env.Run_CLIENT_SCP_PATH}
+                            ssh administrator@${Server_IP} &apos;${env.Run_CLIENT_PATH}\\find_and_replace.bat&apos; &apos;${env.Run_CLIENT_PATH}\\main.*.js&apos; &apos;https://api.als001.corp.amplelogic.com&apos; &apos;http://${Server_IP}:8855&apos; &apos;${env.Run_CLIENT_PATH}\\main.*.js&apos;
+                        &quot;&quot;&quot;
+                        def subject = &quot;${JOB_NAME} Build is Completed&quot;
+                        def body = &quot;&quot;&quot;
+Hi Team,
+                                                        
+Client side Build is Completed. Please check with DevLead for Release points.
+
+Thanks and regards,
+LowCode Platform
+                        &quot;&quot;&quot;
+                        //sh &quot;/opt/Atwork_Project_Creation/Git_Projects/Mails/Mail.sh --cc_recipients=${cc_recp} --to_recipients=${to_recp} --subject=&apos;${subject}&apos; --body=&apos;${body}&apos;&quot;
+                        sh &quot;sh /opt/Atwork_Project_Creation/Git_Projects/Mails/Mail_Teams.sh --cc_recipients=${cc_recp} --to_recipients=${to_recp} --subject=&apos;${subject}&apos; --body=&apos;${body}&apos;&quot;
+                    } else {
+                        echo &quot;No files found in the source folder. Skipping SSH commands.&quot;
+                    }
+                }
+            }
+        }
+    }
+    
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
